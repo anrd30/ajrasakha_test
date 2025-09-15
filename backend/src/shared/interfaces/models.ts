@@ -23,6 +23,9 @@ export interface IQuestion {
   totalAnwersCount: number;
   createdAt?: Date;
   updatedAt?: Date;
+  similarity_score?: number;
+  reviewCyclecount?: number;
+  finalReviewerID?: ObjectId | string;
 }
 
 export interface IAnswer {
@@ -37,8 +40,18 @@ export interface IAnswer {
 }
 
 // For transcripts
-export interface IContext { 
+export interface IContext {
   _id?: string | ObjectId;
   text: string;
+  createdAt?: Date;
+}
+
+// Simple peer review interface
+export interface IPeerReview {
+  _id?: string | ObjectId;
+  answerId: string | ObjectId;
+  reviewerId: string | ObjectId;
+  score: number; // 1-5 scale
+  similarity: number; // 0-1, calculated similarity score
   createdAt?: Date;
 }

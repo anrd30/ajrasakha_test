@@ -6,11 +6,11 @@ import {inject, injectable} from 'inversify';
 import {ClientSession} from 'mongodb';
 import {IAnswer} from '#root/shared/interfaces/models.js';
 import {BadRequestError} from 'routing-controllers';
+import {PeerReviewService} from '#root/shared/peer-review-service.js';
 import {
   SubmissionResponse,
   UpdateAnswerBody,
 } from '../classes/validators/AnswerValidators.js';
-
 @injectable()
 export class AnswerService extends BaseService {
   constructor(
@@ -54,7 +54,7 @@ export class AnswerService extends BaseService {
         throw new BadRequestError('You’ve already submitted an answer!');
       }
 
-      const isFinalAnswer = true; // Need to calculate properly
+      const isFinalAnswer = false; // Start as not final, check reviews later
       const updatedAnswerCount = question.totalAnwersCount + 1;
 
       const insertedId = await this.answerRepo.addAnswer(
@@ -65,15 +65,36 @@ export class AnswerService extends BaseService {
         updatedAnswerCount,
         session,
       );
+
+      // Auto-create 3 anonymous reviews with random scores (simple simulation)
+      for (let i = 0; i < 3; i++) {
+        PeerReviewService.addReview({
+          answerId: insertedId.insertedId,
+          reviewerId: `reviewer_${i + 1}`, // Anonymous reviewer
+          score: Math.floor(Math.random() * 5) + 1, // Random score 1-5
+          similarity: Math.random(), // Random similarity 0-1
+        });
+      }
+
+      // Check if similarity threshold is reached
+      const similarity = PeerReviewService.calculateSimilarity(insertedId.insertedId);
+      const finalAnswer = similarity.thresholdReached;
+
+      // Update answer if threshold reached
+      if (finalAnswer) {
+        await this.answerRepo.updateAnswer(insertedId.insertedId, { isFinalAnswer: true }, session);
+      }
+
       await this.questionRepo.updateQuestion(
         questionId,
         {
           totalAnwersCount: updatedAnswerCount,
-          status: isFinalAnswer ? 'closed' : 'open',
+          status: finalAnswer ? 'closed' : 'open',
         },
         session,
       );
-      return {...insertedId, isFinalAnswer};
+
+      return {...insertedId, isFinalAnswer: finalAnswer};
     });
   }
 
