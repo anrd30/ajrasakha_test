@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle,
   Eye,
-  MessageCircle,
   RefreshCw,
   RotateCcw,
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
+  MessageCircle,
+  MessageSquarePlus,
+  Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./atoms/card";
 import { RadioGroup, RadioGroupItem } from "./atoms/radio-group";
@@ -24,40 +28,45 @@ import {
   DialogTrigger,
 } from "./atoms/dialog";
 import { AlertDialogHeader } from "./atoms/alert-dialog";
-import { getTimeDifference } from "@/utils/getTimeDifference";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./atoms/select";
 
 // const questions = await generateQuestionDataSet();
-
+export type QuestionFilter =
+  | "newest"
+  | "oldest"
+  | "leastResponses"
+  | "mostResponses";
 export const QAInterface = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [newAnswer, setNewAnswer] = useState<string>("");
   const [isFinalAnswer, setIsFinalAnswer] = useState<boolean>(false);
-  const [filter, setFilter] = useState("newest");
+  const [filter, setFilter] = useState<QuestionFilter>("newest");
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const LIMIT = 10;
   const {
     data: questionPages,
     isLoading: isQuestionsLoading,
-    error: fetchAllQuestionError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useGetAllQuestions(10);
+    refetch,
+  } = useGetAllQuestions(LIMIT, filter);
 
   const questions = questionPages?.pages.flat() || [];
 
-  const {
-    data: selectedQuestionData,
-    error: fetchSelectedQuestionError,
-    isLoading: isSelectedQuestionLoading,
-  } = useGetQuestionById(selectedQuestion);
+  const { data: selectedQuestionData, isLoading: isSelectedQuestionLoading } =
+    useGetQuestionById(selectedQuestion);
 
-  const {
-    mutateAsync: submitAnswer,
-    isPending: isSubmittingAnswer,
-    isError: submitAnswerError,
-  } = useSubmitAnswer();
+  const { mutateAsync: submitAnswer, isPending: isSubmittingAnswer } =
+    useSubmitAnswer();
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -83,7 +92,7 @@ export const QAInterface = () => {
         questionId: selectedQuestion,
         answer: newAnswer,
       });
-      setIsFinalAnswer(result.isFinalAnswer);
+      if (result) setIsFinalAnswer(result.isFinalAnswer);
       toast.success("Response submitted successfully!");
       setNewAnswer("");
     } catch (error) {
@@ -95,7 +104,7 @@ export const QAInterface = () => {
     }
   };
 
-  const handleFilterChange = (value: string) => {
+  const handleFilterChange = (value: QuestionFilter) => {
     setFilter(value);
   };
 
@@ -104,92 +113,31 @@ export const QAInterface = () => {
   };
 
   return (
-    <div className="container mx-auto px-6 bg-transparent">
+    <div className="container mx-auto px-4 md:px-6 bg-transparent py-4">
       <div className="flex flex-col space-y-6">
-        <div className="grid h-full grid-rows-2 gap-6 lg:grid-cols-2 lg:grid-rows-1">
-          <Card className="h-[60vh] md:h-[70vh] lg:h-[75vh] border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg bg-transparent">
-            <CardHeader className="border-b flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg font-semibold">
-                Incoming Questions
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="w-full md:max-h-[70vh] max-h-[80vh] border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg bg-transparent">
+            <CardHeader className="border-b flex flex-row items-center justify-between pb-4">
+              <CardTitle className="text-md md:text-lg font-semibold">
+                Question Queues
               </CardTitle>
 
-              {/* <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Select value={filter} onValueChange={handleFilterChange}>
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue placeholder="Sort by..." />
+                  <SelectTrigger className="flex items-center w-fit justify-center  md:w-[200px] p-2 ">
+                    <Filter className="w-5 h-5 md:hidden mx-auto" />
+                    <span className="hidden md:block">
+                      <SelectValue placeholder="Sort by" />
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        Newest First
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="oldest">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 16v-4l-3-3m6 3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        Oldest First
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
                     <SelectItem value="leastResponses">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.965 8.965 0 01-4.126-.937l-3.157.937.937-3.157A8.965 8.965 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"
-                          />
-                        </svg>
-                        Least Responses
-                      </div>
+                      Least Responses
                     </SelectItem>
                     <SelectItem value="mostResponses">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.965 8.965 0 01-4.126-.937l-3.157.937.937-3.157A8.965 8.965 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"
-                          />
-                        </svg>
-                        Most Responses
-                      </div>
+                      Most Responses
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -197,17 +145,17 @@ export const QAInterface = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {}}
-                  className="h-9 px-3"
+                  onClick={() => refetch()}
+                  className="h-9 px-3 bg-transparent hidden md:block"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="sr-only">Refresh</span>
                 </Button>
-              </div> */}
+              </div>
             </CardHeader>
             {isQuestionsLoading ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">
-                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-2">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2">
                   <svg
                     className="w-8 h-8 text-gray-400 dark:text-gray-500 animate-spin"
                     fill="none"
@@ -234,7 +182,7 @@ export const QAInterface = () => {
               </div>
             ) : !questions || questions.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">
-                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-2">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2">
                   <svg
                     className="w-8 h-8 text-gray-400 dark:text-gray-500"
                     fill="none"
@@ -255,7 +203,7 @@ export const QAInterface = () => {
               </div>
             ) : (
               <CardContent
-                className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-200 dark:scrollbar-track-gray-800 p-4 "
+                className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-200 dark:scrollbar-track-gray-800 p-4"
                 ref={scrollRef}
               >
                 <RadioGroup
@@ -290,7 +238,7 @@ export const QAInterface = () => {
                           <div className="flex-1 min-w-0">
                             <Label
                               htmlFor={question?.id}
-                              className="text-base font-medium leading-relaxed cursor-pointer text-foreground group-hover:text-foreground/90 transition-colors block"
+                              className="text-sm md:text-base font-medium leading-relaxed cursor-pointer text-foreground group-hover:text-foreground/90 transition-colors block"
                             >
                               {question?.text}
                             </Label>
@@ -298,7 +246,7 @@ export const QAInterface = () => {
                         </div>
 
                         <div className="mt-3 ml-7 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
+                          <div className=" items-center gap-1.5  flex">
                             <svg
                               className="w-3 h-3"
                               fill="none"
@@ -312,11 +260,13 @@ export const QAInterface = () => {
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               />
                             </svg>
-                            <span className="font-medium">Created:</span>
+                            <span className="font-medium text-xs">
+                              Created:
+                            </span>
                             <span>{question?.createdAt}</span>
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="hidden md:flex items-center gap-1.5">
                             <svg
                               className="w-3 h-3"
                               fill="none"
@@ -334,7 +284,7 @@ export const QAInterface = () => {
                             <span>{question?.updatedAt}</span>
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="hidden md:flex items-center gap-1.5">
                             <svg
                               className="w-3 h-3"
                               fill="none"
@@ -356,7 +306,6 @@ export const QAInterface = () => {
                         </div>
                       </div>
 
-                      {/* Subtle gradient overlay for selected state */}
                       {selectedQuestion === question?.id && (
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
                       )}
@@ -375,7 +324,7 @@ export const QAInterface = () => {
             )}
           </Card>
 
-          <Card className="h-[60vh] md:h-[70vh] lg:h-[75vh] border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg bg-transparent ml-4">
+          <Card className="w-full md:max-h-[70vh] max-h-[80vh] border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg bg-transparent mb-3 md:mb-0">
             <CardHeader className="border-b border-gray-200 dark:border-gray-700">
               <CardTitle className="text-lg font-semibold">Response</CardTitle>
             </CardHeader>
@@ -407,7 +356,7 @@ export const QAInterface = () => {
                       placeholder="Enter your answer here..."
                       value={newAnswer}
                       onChange={(e) => setNewAnswer(e.target.value)}
-                      className="mt-1 max-h-[190px] min-h-[150px] resize-y border border-gray-200 dark:border-gray-600 rounded-md overflow-y-auto p-3 pb-0 bg-transparent"
+                      className="mt-1 md:max-h-[190px] max-h-[170px] min-h-[150px] resize-y border border-gray-200 dark:border-gray-600 text-sm md:text-md rounded-md overflow-y-auto p-3 pb-0 bg-transparent"
                     />
                     {isFinalAnswer && (
                       <p className="mt-2 text-green-600 dark:text-green-400 text-sm font-medium">
@@ -421,7 +370,6 @@ export const QAInterface = () => {
                       <Button
                         onClick={handleSubmit}
                         disabled={!newAnswer.trim() || isSubmittingAnswer}
-                        className="bg-green-400 hover:bg-green-500 text-black dark:text-white"
                       >
                         {isSubmittingAnswer ? "Submitting..." : "Submit"}
                       </Button>
@@ -446,11 +394,13 @@ export const QAInterface = () => {
                           variant="outline"
                           className="bg-transparent flex items-center"
                         >
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Other Responses
+                          <Eye className="w-4 h-4 md:mr-2" />
+                          <span className="hidden md:inline">
+                            View Other Responses
+                          </span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-950 dark:via-emerald-950 dark:to-teal-950">
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto ">
                         <AlertDialogHeader>
                           <DialogTitle>Other Responses</DialogTitle>
                         </AlertDialogHeader>
@@ -471,7 +421,7 @@ export const QAInterface = () => {
                                     className={`relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg ${
                                       currentAnswer.isFinalAnswer
                                         ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/20 border-green-200 dark:border-green-800 shadow-green-100/50 dark:shadow-green-900/20"
-                                        : "bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900/50 dark:to-gray-800/30 border-gray-200 dark:border-gray-700 shadow-sm"
+                                        : ""
                                     }`}
                                   >
                                     <div
@@ -544,7 +494,6 @@ export const QAInterface = () => {
                                         </div>
                                       </div>
 
-                                      {/* Content section */}
                                       <div className="space-y-4">
                                         <div
                                           className={`prose prose-sm max-w-none ${

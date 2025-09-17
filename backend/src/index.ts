@@ -15,6 +15,8 @@ import {printStartupSummary} from './utils/logDetails.js';
 import type {CorsOptions} from 'cors';
 import {authorizationChecker} from './shared/functions/authorizationChecker.js';
 import {currentUserChecker} from './shared/functions/currentUserChecker.js';
+import path from 'path';
+import {fileURLToPath} from 'url';
 
 const app = express();
 
@@ -44,14 +46,18 @@ const moduleOptions: RoutingControllersOptions = {
   cors: corsOptions,
 };
 
-// const openApiSpec = await generateOpenAPISpec(moduleOptions, validators);
-// app.use(
-//   '/reference',
-//   apiReference({
-//     content: openApiSpec,
-//     theme: 'elysiajs',
-//   }),
-// );
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendPath));
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  } else {
+    next();
+  }
+});
 
 if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
   console.log(

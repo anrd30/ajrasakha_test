@@ -129,6 +129,7 @@ export class QuestionRepository implements IQuestionRepository {
     userId: string,
     page = 1,
     limit = 10,
+    filter: 'newest' | 'oldest' | 'leastResponses' | 'mostResponses',
     session?: ClientSession,
   ): Promise<QuestionResponse[]> {
     try {
@@ -136,7 +137,7 @@ export class QuestionRepository implements IQuestionRepository {
 
       const skip = (page - 1) * limit;
 
-      const pipeline = [
+      const pipeline: any = [
         {
           $match: {status: 'open'},
         },
@@ -162,23 +163,36 @@ export class QuestionRepository implements IQuestionRepository {
         {
           $match: {userAnswers: {$size: 0}},
         },
-        {$skip: skip},
-        {$limit: limit},
-        {
-          $project: {
-            id: {$toString: '$_id'},
-            text: '$question',
-            createdAt: {
-              $dateToString: {format: '%d-%m-%Y %H:%M:%S', date: '$createdAt'},
-            },
-            updatedAt: {
-              $dateToString: {format: '%d-%m-%Y %H:%M:%S', date: '$updatedAt'},
-            },
-            totalAnwersCount: 1,
-            _id: 0,
-          },
-        },
       ];
+
+      if (filter === 'newest') {
+        pipeline.push({$sort: {createdAt: -1}});
+      } else if (filter === 'oldest') {
+        pipeline.push({$sort: {createdAt: 1}});
+      } else if (filter === 'leastResponses') {
+        pipeline.push({$sort: {totalAnwersCount: 1}});
+      } else if (filter === 'mostResponses') {
+        pipeline.push({$sort: {totalAnwersCount: -1}});
+      }
+
+      // Pagination
+      pipeline.push({$skip: skip});
+      pipeline.push({$limit: limit});
+      // Projection.
+      pipeline.push({
+        $project: {
+          id: {$toString: '$_id'},
+          text: '$question',
+          createdAt: {
+            $dateToString: {format: '%d-%m-%Y %H:%M:%S', date: '$createdAt'},
+          },
+          updatedAt: {
+            $dateToString: {format: '%d-%m-%Y %H:%M:%S', date: '$updatedAt'},
+          },
+          totalAnwersCount: 1,
+          _id: 0,
+        },
+      });
 
       const results = await this.QuestionCollection.aggregate<QuestionResponse>(
         pipeline,

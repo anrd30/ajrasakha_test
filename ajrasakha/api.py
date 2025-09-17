@@ -6,46 +6,49 @@ import httpx
 from typing import Optional, List, Union
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.json_schema import JsonSchemaValue
+from helpers import ollama_generate
 from models import ChatCompletionRequest, Message, ThinkingResponseChunk, ContentResponseChunk
 from ce.retrievers.basic import BasicRetriever, MongoDBVectorStoreManager, EmbeddingManager
+from llama_index.core.indices.property_graph import SchemaLLMPathExtractor
+from llama_index.core import Document
+from llama_index.core.indices.property_graph import PropertyGraphIndex
+from ollama import AsyncClient
+import pymongo
+
+from constants import COLLECTION_POP, COLLECTION_QA
+from functions import get_retriever
 
 app = FastAPI(title="AjraSakha")
 
-username = quote_plus("")
-password = quote_plus("")
+OLLAMA_MODEL_1 = "qwen3:1.7b"
+OLLAMA_MODEL_2 = "deepseek-r1:70b"
+
+username = quote_plus("agriai")
+password = quote_plus("agriai1224")
 
 MONGODB_URI = f"mongodb+srv://{username}:{password}@staging.1fo96dy.mongodb.net/?retryWrites=true&w=majority&appName=staging"
 
 OLLAMA_API_URL = "http://100.100.108.13:11434/api/chat"
+ollama_client = AsyncClient(host="http://100.100.108.13:11434")
 
-embedding_manager = EmbeddingManager()
-embedding_manager.setup()
+client: pymongo.MongoClient = pymongo.MongoClient(MONGODB_URI)
 
-db_manager = MongoDBVectorStoreManager(
-    uri=MONGODB_URI
-)
+retriever_qa = get_retriever(client=client, collection_name=COLLECTION_QA, similarity_top_k=3)
+retriever_pop = get_retriever(client=client, collection_name=COLLECTION_POP, similarity_top_k=10)
 
 
-    
 
 async def generate_response(request: ChatCompletionRequest):
-    yield ThinkingResponseChunk("Processing your request... \n")
-    
-    vector_store = db_manager.get_vector_store(
-        db_name="PoP",
-        collection_name="gujarat"
-    )
-    retriever = BasicRetriever(vector_store=vector_store)
+
 
     
-    yield ThinkingResponseChunk("Retrieving relavent data... \n")
-    nodes = await retriever.retrieve("What is brahmastra?")
-    context = retriever.build_context(nodes)
-    for part in context:
-        yield ThinkingResponseChunk(f"{part}\n\n")
-    yield ThinkingResponseChunk("Generating response... \n")
-    yield ContentResponseChunk("Here is the response from the assistant.\n", final_chunk=True)
+    total_content = ""
+    async for chunk in ollama_generate(prompt=request.messages[-1].content, context=total_content, model=OLLAMA_MODEL_1):
+        yield chunk
+    
+    yield ContentResponseChunk("", final_chunk=True)
         
 
 @app.post("/api/chat/")
