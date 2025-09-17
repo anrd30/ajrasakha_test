@@ -64,6 +64,9 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.development
+.env.production
 
 # dataconnect generated files
 .dataconnect
@@ -78,4 +81,6 @@ tsconfig.tsbuildinfo
 client/
 build/
 
-agriai-a2fba-firebase-adminsdk-fbsvc-452072d744.json
+# Firebase service account keys (all variations)
+*firebase*adminsdk*.json
+agriai-a2fba-firebase-adminsdk*.json
