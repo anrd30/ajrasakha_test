@@ -325,7 +325,7 @@ export const QAInterface = () => {
             <CardHeader className="border-b border-gray-200 dark:border-gray-700">
               <CardTitle className="text-lg font-semibold">Response</CardTitle>
             </CardHeader>
-            <CardContent className="h-full flex flex-col space-y-6 p-4 overflow-hidden scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-200 dark:scrollbar-track-gray-800">
+            <CardContent className="h-full flex flex-col space-y-6 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-white scrollbar-track-gray-100 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700">
               {isSelectedQuestionLoading ? (
                 <div className="h-full flex flex-col items-center justify-center">
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

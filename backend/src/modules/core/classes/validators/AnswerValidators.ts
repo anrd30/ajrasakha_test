@@ -148,7 +148,7 @@ class SubmissionResponse {
   })
   @ValidateNested()
   @Type(() => ResponseDto)
-  reponse: ResponseDto;
+  response: ResponseDto;
 }
 
 class AnswerIdParam {

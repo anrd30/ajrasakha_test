@@ -39,14 +39,21 @@ export const authModuleOptions: RoutingControllersOptions = {
     }
 
     try {
-      return await authService.verifyToken(token);
-      // const user = await authService.getUserFromToken(token);
-      // action.request.user = user;
+      const isValidToken = await authService.verifyToken(token);
+      if (!isValidToken) {
+        return false;
+      }
+
+      // Get the user and set it on the request
+      const user = await authService.getCurrentUserFromToken(token);
+      action.request.user = user;
 
       // Check if the user's roles match the required roles
-      // if (roles.length > 0 && !roles.some(role => user.roles.includes(role))) {
-      //   return false;
-      // }
+      if (roles.length > 0 && !roles.some(role => user.role === role)) {
+        return false;
+      }
+
+      return true;
     } catch (error) {
       return false;
     }
@@ -60,7 +67,7 @@ export const authModuleOptions: RoutingControllersOptions = {
       return null;
     }
     try {
-      return await authService.verifyToken(token);
+      return await authService.getCurrentUserFromToken(token);
     } catch (error) {
       return null;
     }

@@ -26,17 +26,25 @@ export class ReviewerAssignmentRepository implements IReviewerAssignmentReposito
     try {
       await this.init();
 
-      if (!assignment.answerId || !isValidObjectId(assignment.answerId)) {
+      // Convert ObjectId fields to strings for validation
+      const answerIdStr = assignment.answerId instanceof ObjectId
+        ? assignment.answerId.toString()
+        : assignment.answerId;
+      const reviewerIdStr = assignment.reviewerId instanceof ObjectId
+        ? assignment.reviewerId.toString()
+        : assignment.reviewerId;
+
+      if (!answerIdStr || !isValidObjectId(answerIdStr)) {
         throw new BadRequestError('Invalid or missing answerId');
       }
-      if (!assignment.reviewerId || !isValidObjectId(assignment.reviewerId)) {
+      if (!reviewerIdStr || !isValidObjectId(reviewerIdStr)) {
         throw new BadRequestError('Invalid or missing reviewerId');
       }
 
       const doc: Omit<IReviewerAssignment, '_id'> = {
         ...assignment,
-        answerId: new ObjectId(assignment.answerId),
-        reviewerId: new ObjectId(assignment.reviewerId),
+        answerId: new ObjectId(answerIdStr),
+        reviewerId: new ObjectId(reviewerIdStr),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -155,11 +163,21 @@ export class ReviewerAssignmentRepository implements IReviewerAssignmentReposito
       };
 
       // Convert ObjectId fields if they are being updated
-      if (updates.answerId && typeof updates.answerId === 'string') {
-        updateDoc.answerId = new ObjectId(updates.answerId);
+      if (updates.answerId) {
+        const answerIdStr = updates.answerId instanceof ObjectId
+          ? updates.answerId.toString()
+          : updates.answerId;
+        if (typeof answerIdStr === 'string') {
+          updateDoc.answerId = new ObjectId(answerIdStr);
+        }
       }
-      if (updates.reviewerId && typeof updates.reviewerId === 'string') {
-        updateDoc.reviewerId = new ObjectId(updates.reviewerId);
+      if (updates.reviewerId) {
+        const reviewerIdStr = updates.reviewerId instanceof ObjectId
+          ? updates.reviewerId.toString()
+          : updates.reviewerId;
+        if (typeof reviewerIdStr === 'string') {
+          updateDoc.reviewerId = new ObjectId(reviewerIdStr);
+        }
       }
 
       const result = await this.reviewerAssignmentsCollection.updateOne(

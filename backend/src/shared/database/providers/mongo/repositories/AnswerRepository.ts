@@ -180,7 +180,7 @@ export class AnswerRepository implements IAnswerRepository {
         createdAt: sub.createdAt.toISOString(),
         updatedAt: sub.updatedAt.toISOString(),
         totalAnwersCount: sub.totalAnswersCount,
-        reponse: sub.responses[0],
+        response: sub.responses[0],
       }));
     } catch (error) {
       throw new InternalServerError(`Failed to fetch submissions: ${error}`);

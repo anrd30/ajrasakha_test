@@ -45,29 +45,39 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     if (!admin.apps.length) {
+      console.log('Initializing Firebase Admin SDK...');
       admin.initializeApp({
         credential: admin.credential.cert(
           serviceAccount as admin.ServiceAccount,
         ),
       });
+      console.log('Firebase Admin SDK initialized successfully');
+    } else {
+      console.log('Firebase Admin SDK already initialized');
     }
     this.auth = admin.auth();
   }
   async getCurrentUserFromToken(token: string): Promise<IUser> {
+    console.log('getCurrentUserFromToken called');
     // Verify the token and decode it to get the Firebase UID
     const decodedToken = await this.auth.verifyIdToken(token);
     const firebaseUID = decodedToken.uid;
+    console.log('Firebase UID from token:', firebaseUID);
 
     // Retrieve the user from our database using the Firebase UID
+    console.log('Looking up user in database...');
     const user = await this.userRepository.findByFirebaseUID(firebaseUID);
+    console.log('User found in database:', !!user);
+
     if (!user) {
+      console.log('User not found in database, creating new user...');
       // get user data from Firebase
       try {
         const firebaseUser = await this.auth.getUser(firebaseUID);
         if (!firebaseUser) {
           throw new InternalServerError('Firebase user not found');
         }
-        console.log('Firebase user retrieved:', firebaseUser);
+        console.log('Firebase user retrieved:', firebaseUser.email);
         // Map Firebase user data to our application user model
         const userData: GoogleSignUpBody = {
           email: firebaseUser.email,
@@ -78,12 +88,16 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         if (!createdUser) {
           throw new InternalServerError('Failed to create the user');
         }
+        console.log('New user created successfully');
+        return createdUser;
       } catch (error) {
+        console.log('Error creating user:', error.message);
         throw new InternalServerError(
           `Failed to retrieve user from Firebase: ${error.message}`,
         );
       }
     }
+    console.log('Returning existing user');
     user._id = user._id.toString();
     return user;
   }
@@ -116,7 +130,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     return true;
   }
 
-  async signup(body: SignUpBody): Promise<{ user: { uid: string; email: string; displayName: string; photoURL: string }} | null>{
+  async signup(body: SignUpBody): Promise<{ user: { uid: string; email: string; displayName: string; photoURL: string }} | null> {
     let userRecord: any;
     try {
       // Create the user in Firebase Auth
@@ -151,14 +165,15 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError('Failed to create the user');
       }
     });
-     return {
-    user: {
-      uid: userRecord.uid,
-      email: userRecord.email,
-      displayName: userRecord.displayName || `${body.firstName} ${body.lastName || ''}`,
-      photoURL: userRecord.photoURL || '',
-    }
-  }
+
+    return {
+      user: {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        displayName: userRecord.displayName || `${body.firstName} ${body.lastName || ''}`,
+        photoURL: userRecord.photoURL || '',
+      }
+    };
   }
   async googleSignup(body: GoogleSignUpBody, token: string): Promise<any> {
     await this.verifyToken(token);
@@ -182,6 +197,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError('Failed to create the user');
       }
     });
+
+    return createdUserId;
   }
 
   async changePassword(

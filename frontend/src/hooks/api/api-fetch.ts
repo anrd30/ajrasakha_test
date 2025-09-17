@@ -9,6 +9,7 @@ const getCurrentUser = (): Promise<User | null> => {
     });
   });
 };
+
 export const apiFetch = async <T>(
   url: string,
   options: RequestInit = {}

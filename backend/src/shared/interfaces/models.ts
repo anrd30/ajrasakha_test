@@ -46,6 +46,42 @@ export interface IContext {
   createdAt?: Date;
 }
 
+// Blind review ranking interface
+export interface IAnswerRanking {
+  _id?: string | ObjectId;
+  reviewerId: string | ObjectId;
+  questionId: string | ObjectId;
+  rankings: IAnswerRank[]; // Ordered list from best to worst
+  status: 'in_progress' | 'completed';
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IAnswerRank {
+  answerId: string | ObjectId;
+  anonymousId: string; // For blind review (e.g., "Answer A", "Answer B")
+  rank: number; // Position in ranking (1 = best, n = worst)
+  bordaPoints: number; // Calculated Borda points
+}
+
+// Blind review assignment
+export interface IBlindReviewAssignment {
+  _id?: string | ObjectId;
+  reviewerId: string | ObjectId;
+  questionId: string | ObjectId;
+  answerMappings: IAnswerMapping[]; // Maps anonymous IDs to real answer IDs
+  status: 'assigned' | 'in_progress' | 'completed';
+  dueDate?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IAnswerMapping {
+  anonymousId: string; // "Answer A", "Answer B", etc.
+  realAnswerId: string | ObjectId;
+  authorId: string | ObjectId; // Hidden from reviewer
+}
+
 // Simple peer review interface
 export interface IPeerReview {
   _id?: string | ObjectId;

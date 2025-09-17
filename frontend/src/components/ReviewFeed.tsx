@@ -37,33 +37,33 @@ export const ReviewFeed = ({ onNavigateToReviews }: ReviewFeedProps = {}) => {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">Pending Reviews</CardTitle>
+          <CardTitle className="text-lg">Agricultural Assistance Queue</CardTitle>
           <Badge variant="outline" className="text-blue-600">
-            {pendingAssignments.length} pending
+            {pendingAssignments.length} questions pending
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto min-h-0">
         {pendingAssignments.length === 0 ? (
           <div className="text-center py-6 text-gray-500">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No pending reviews</p>
-            <p className="text-sm">You're all caught up!</p>
+            <p>No pending questions</p>
+            <p className="text-sm">All questions have been assisted!</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {pendingAssignments.slice(0, 3).map((assignmentData) => (
+          <div className="space-y-3 pr-2">
+            {pendingAssignments.map((assignmentData) => (
               <div
                 key={assignmentData.assignment._id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-4 h-4 text-yellow-600" />
-                    <span className="text-sm font-medium">
+                    <Clock className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">
                       Assignment #{assignmentData.assignment._id.slice(-6)}
                     </span>
                     <Badge
@@ -72,7 +72,7 @@ export const ReviewFeed = ({ onNavigateToReviews }: ReviewFeedProps = {}) => {
                         assignmentData.assignment.priority === 'urgent' ? 'destructive' :
                         'secondary'
                       }
-                      className="text-xs"
+                      className="text-xs flex-shrink-0"
                     >
                       {assignmentData.assignment.priority}
                     </Badge>
@@ -88,24 +88,14 @@ export const ReviewFeed = ({ onNavigateToReviews }: ReviewFeedProps = {}) => {
                   size="sm"
                   variant="outline"
                   onClick={handleViewReviews}
+                  className="flex-shrink-0 ml-2"
                 >
-                  Review
+                  Provide Assistance
                 </Button>
               </div>
             ))}
-
-            {pendingAssignments.length > 3 && (
-              <div className="text-center pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleViewReviews}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  View all {pendingAssignments.length} reviews
-                </Button>
-              </div>
-            )}
+            {/* Add some padding at the bottom for better scrolling experience */}
+            <div className="h-4"></div>
           </div>
         )}
 
@@ -116,7 +106,7 @@ export const ReviewFeed = ({ onNavigateToReviews }: ReviewFeedProps = {}) => {
             variant="outline"
           >
             <Star className="w-4 h-4 mr-2" />
-            Go to Review Dashboard
+            Go to Agricultural Assistance Dashboard
           </Button>
         </div>
       </CardContent>
