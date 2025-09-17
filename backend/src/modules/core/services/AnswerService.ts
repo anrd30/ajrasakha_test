@@ -7,6 +7,8 @@ import {ClientSession} from 'mongodb';
 import {IAnswer} from '#root/shared/interfaces/models.js';
 import {BadRequestError} from 'routing-controllers';
 import {PeerReviewService} from '#root/shared/peer-review-service.js';
+import {ReviewerAssignmentService} from '#root/shared/reviewer-assignment-service.js';
+import {IReviewerAssignment, ReviewPriority} from '#root/shared/interfaces/models.js';
 import {
   SubmissionResponse,
   UpdateAnswerBody,
@@ -66,19 +68,11 @@ export class AnswerService extends BaseService {
         session,
       );
 
-      // Auto-create 3 anonymous reviews with random scores (simple simulation)
-      for (let i = 0; i < 3; i++) {
-        PeerReviewService.addReview({
-          answerId: insertedId.insertedId,
-          reviewerId: `reviewer_${i + 1}`, // Anonymous reviewer
-          score: Math.floor(Math.random() * 5) + 1, // Random score 1-5
-          similarity: Math.random(), // Random similarity 0-1
-        });
-      }
+      // Assign reviewers to the new answer (replace mock reviews)
+      await this.assignReviewersToAnswer(insertedId.insertedId, session);
 
-      // Check if similarity threshold is reached
-      const similarity = PeerReviewService.calculateSimilarity(insertedId.insertedId);
-      const finalAnswer = similarity.thresholdReached;
+      // For now, don't check similarity threshold immediately - wait for real reviews
+      const finalAnswer = false;
 
       // Update answer if threshold reached
       if (finalAnswer) {
@@ -174,5 +168,40 @@ export class AnswerService extends BaseService {
 
       return this.answerRepo.deleteAnswer(answerId, session);
     });
+  }
+
+  // Assign reviewers to an answer
+  private async assignReviewersToAnswer(
+    answerId: string,
+    session: ClientSession
+  ): Promise<void> {
+    try {
+      // Assign reviewers using the assignment service
+      const assignments = await ReviewerAssignmentService.assignReviewersToAnswer(
+        answerId,
+        'medium' as ReviewPriority // TODO: Determine priority based on question type/urgency
+      );
+
+      // Create corresponding review records for each assignment
+      for (const assignment of assignments) {
+        const review = {
+          answerId,
+          reviewerId: assignment.reviewerId,
+          status: 'assigned' as const,
+          assignedAt: assignment.assignedAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        // TODO: Save review to database
+        // await PeerReviewService.createReview(review);
+      }
+
+      console.log(`Assigned ${assignments.length} reviewers to answer ${answerId}`);
+    } catch (error) {
+      console.error('Error assigning reviewers:', error);
+      // Continue execution even if reviewer assignment fails
+      // The answer can still be submitted without reviewers initially
+    }
   }
 }

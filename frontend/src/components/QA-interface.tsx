@@ -429,9 +429,17 @@ export const QAInterface = () => {
                         <span className="sr-only">Reset answer</span>
                         <RotateCcw className="h-4 w-4" />
                       </Button>
-                    </div>
-
-                    <Dialog>
+                    {/* Simple Review Status */}
+                    {selectedQuestionData?.currentAnswers?.length > 0 && (
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <Eye className="w-4 h-4" />
+                        <span>
+                          {selectedQuestionData.currentAnswers[0]?.isFinalAnswer
+                            ? "✓ Final Answer"
+                            : "Under Review"}
+                        </span>
+                      </div>
+                    )}
                       <DialogTrigger asChild>
                         <Button
                           variant="outline"
