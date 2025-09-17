@@ -440,7 +440,8 @@ export const QAInterface = () => {
                         </span>
                       </div>
                     )}
-                      <DialogTrigger asChild>
+                      <Dialog>
+                        <DialogTrigger asChild>
                         <Button
                           variant="outline"
                           className="bg-transparent flex items-center"
@@ -573,6 +574,7 @@ export const QAInterface = () => {
                       </DialogContent>
                     </Dialog>
                   </div>
+                </div>
                 </>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">

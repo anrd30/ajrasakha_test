@@ -15,6 +15,7 @@ interface AuthStore {
   firebaseUser: User | null;
   loading: boolean;
   error: string | null;
+  token: string | null;
   loginWithGoogle: () => Promise<ExtendedUserCredential | null>;
   logout: () => Promise<void>;
   initAuthListener: () => void;
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthStore>()(
         error: null,
         isAuthenticated: false,
         firebaseUser: null,
+        token: null,
         setFirebaseUser: (firebaseUser) =>
           set({ firebaseUser }, undefined, "setFirebaseUser"),
 
@@ -48,7 +50,7 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.removeItem("user-email");
           localStorage.removeItem("user-firstName");
           localStorage.removeItem("user-lastName");
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, token: null });
         },
         loginWithGoogle: async (): Promise<ExtendedUserCredential | null> => {
           set({ loading: true, error: null });
@@ -62,7 +64,7 @@ export const useAuthStore = create<AuthStore>()(
               avatar: result.user.photoURL || "",
             };
             set(
-              { user: authUser, firebaseUser: result.user, loading: false },
+              { user: authUser, firebaseUser: result.user, loading: false, token },
               undefined,
               "loginWithGoogle"
             );
@@ -79,7 +81,7 @@ export const useAuthStore = create<AuthStore>()(
           try {
             await signOut(auth);
             set(
-              { user: null, firebaseUser: null, loading: false },
+              { user: null, firebaseUser: null, loading: false, token: null },
               undefined,
               "logout"
             );
@@ -105,6 +107,7 @@ export const useAuthStore = create<AuthStore>()(
                 firebaseUser,
                 loading: false,
                 isAuthenticated: true,
+                token: await getIdToken(firebaseUser),
               });
             } else {
               set({ user: null, firebaseUser: null, loading: false });
