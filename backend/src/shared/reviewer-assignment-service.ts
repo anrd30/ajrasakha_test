@@ -49,7 +49,8 @@ export class ReviewerAssignmentService {
   static async assignReviewersToAnswer(
     answerId: string,
     priority: ReviewPriority = 'medium',
-    requiredExpertise?: string[]
+    requiredExpertise?: string[],
+    excludeReviewerIds?: string[]
   ): Promise<IReviewerAssignment[]> {
     const assignments: IReviewerAssignment[] = [];
 
@@ -58,6 +59,13 @@ export class ReviewerAssignmentService {
       reviewer => reviewer.isActive &&
                  reviewer.currentReviewLoad < reviewer.maxConcurrentReviews
     );
+
+    // Exclude specified reviewers
+    if (excludeReviewerIds && excludeReviewerIds.length > 0) {
+      availableReviewers = availableReviewers.filter(
+        reviewer => !excludeReviewerIds.includes(reviewer._id!.toString())
+      );
+    }
 
     // Filter by expertise if specified
     if (requiredExpertise && requiredExpertise.length > 0) {
@@ -74,7 +82,14 @@ export class ReviewerAssignmentService {
       availableReviewers = reviewerProfiles.filter(
         reviewer => reviewer.isActive &&
                    reviewer.currentReviewLoad < reviewer.maxConcurrentReviews
-      );
+      )
+
+      // Still exclude specified reviewers
+      if (excludeReviewerIds && excludeReviewerIds.length > 0) {
+        availableReviewers = availableReviewers.filter(
+          reviewer => !excludeReviewerIds.includes(reviewer._id!.toString())
+        );
+      }
     }
 
     // Sort by comprehensive scoring algorithm

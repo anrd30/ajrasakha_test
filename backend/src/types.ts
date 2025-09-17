@@ -17,6 +17,8 @@ const TYPES = {
   AnswerRepository: Symbol.for('AnswerRepository'),
   ContextRepository: Symbol.for('ContextRepository'),
   UserRepository: Symbol.for('userRepository'),
+  PeerReviewRepository: Symbol.for('PeerReviewRepository'),
+  ReviewerAssignmentRepository: Symbol.for('ReviewerAssignmentRepository'),
 
   // Constants
   uri: Symbol.for('dbURI'),

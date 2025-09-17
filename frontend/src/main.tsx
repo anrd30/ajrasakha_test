@@ -6,6 +6,7 @@ import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
 import { worker } from "./mocks/browser.js";
 import { client } from "./client/client.gen.ts";
+
 // import { useAuthStore } from "./stores/auth-store.ts";
 
 if (import.meta.env.VITE_ENABLE_MOCKS === "true") {
@@ -16,8 +17,8 @@ client.setConfig({
   // auth: `${useAuthStore.getState().token}`,
 });
 
-console.log(import.meta.env.VITE_API_BASE_URL, "API Base URL");
-
+console.log(import.meta.env.VITE_API_BASE_URL, "http://localhost:4000");
+console.log(import.meta.env)
 // Create a new router instance
 const router = createRouter({
   routeTree,

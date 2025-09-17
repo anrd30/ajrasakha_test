@@ -78,13 +78,26 @@ export class AnswerController {
     return this.answerService.updateAnswer(answerId, body);
   }
 
-  @OpenAPI({summary: 'Delete an answer and update the related question state'})
-  @Delete('/:questionId/:answerId')
+  @OpenAPI({summary: 'Submit a review for an answer'})
+  @Post('/submit-review/:reviewId')
   @HttpCode(200)
   @Authorized()
   @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
-  async deleteAnswer(@Params() params: DeleteAnswerParams) {
-    const {answerId, questionId} = params;
-    return this.answerService.deleteAnswer(questionId, answerId);
-  }
-}
+  async submitReview(
+    @Param('reviewId') reviewId: string,
+    @Body() body: {
+      score: number;
+      comments?: string;
+      similarity?: number;
+    },
+    @CurrentUser() user: IUser,
+  ) {
+    const reviewerId = user._id.toString();
+    return this.answerService.submitReview(
+      reviewerId,
+      reviewId,
+      body.score,
+      body.comments,
+      body.similarity
+    );
+  }}

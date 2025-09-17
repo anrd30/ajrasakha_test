@@ -23,13 +23,17 @@ export const apiFetch = async <T>(
     console.error("Failed to get token:", err);
     return null;
   }
+
+  // Use full URL if url starts with http, otherwise prepend base URL
+  const fullUrl = url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}${url}`;
+
   const headers = {
     ...(options.headers || {}),
     Authorization: token ? `Bearer ${token}` : "",
     "Content-Type": "application/json",
   };
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(fullUrl, { ...options, headers });
 
   if (!res.ok) {
     let errorMessage = `Request failed with status ${res.status}`;

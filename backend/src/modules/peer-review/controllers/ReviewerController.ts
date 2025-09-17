@@ -17,6 +17,8 @@ import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { IPeerReview, IReviewerAssignment, IUser } from '#root/shared/interfaces/models.js';
 import { PeerReviewService } from '#root/shared/peer-review-service.js';
 import { ReviewerAssignmentService } from '#root/shared/reviewer-assignment-service.js';
+import { IPeerReviewRepository } from '#root/shared/database/interfaces/IPeerReviewRepository.js';
+import { IReviewerAssignmentRepository } from '#root/shared/database/interfaces/IReviewerAssignmentRepository.js';
 
 @OpenAPI({
   tags: ['Reviews'],
@@ -24,6 +26,14 @@ import { ReviewerAssignmentService } from '#root/shared/reviewer-assignment-serv
 })
 @JsonController('/reviews')
 export class ReviewerController {
+  constructor(
+    @inject(GLOBAL_TYPES.PeerReviewRepository)
+    private readonly peerReviewRepo: IPeerReviewRepository,
+
+    @inject(GLOBAL_TYPES.ReviewerAssignmentRepository)
+    private readonly reviewerAssignmentRepo: IReviewerAssignmentRepository,
+  ) {}
+
   // Get all pending reviews for the current reviewer
   @Get('/my-assignments')
   @HttpCode(200)
@@ -33,42 +43,18 @@ export class ReviewerController {
     const reviewerId = user._id.toString();
 
     // Get review assignments for this reviewer
-    const assignments = ReviewerAssignmentService.getAssignmentsForReviewer(reviewerId);
+    const assignments = await this.reviewerAssignmentRepo.getAssignmentsForReviewer(reviewerId);
 
     // Get corresponding review details
-    const reviewsWithDetails = assignments.map(assignment => {
-      const review = PeerReviewService.getReviewById(assignment._id!.toString());
+    const reviewsWithDetails = await Promise.all(assignments.map(async (assignment) => {
+      const review = await this.peerReviewRepo.getReviewById(assignment._id!.toString());
       return {
         assignment,
         review,
       };
-    });
+    }));
 
     return reviewsWithDetails;
-  }
-
-  // Get a specific review assignment details
-  @Get('/assignment/:assignmentId')
-  @HttpCode(200)
-  @Authorized()
-  @OpenAPI({ summary: 'Get details of a specific review assignment' })
-  async getReviewAssignment(
-    @Param('assignmentId') assignmentId: string,
-    @CurrentUser() user: IUser
-  ) {
-    const reviewerId = user._id.toString();
-
-    const assignment = ReviewerAssignmentService.getAssignmentById(assignmentId.toString());
-    if (!assignment || assignment.reviewerId !== reviewerId) {
-      throw new Error('Review assignment not found or access denied');
-    }
-
-    // TODO: Get the actual answer content from the database
-    // For now, return assignment details
-    return {
-      assignment,
-      // TODO: Include answer content, question details, etc.
-    };
   }
 
   // Submit a review
@@ -88,29 +74,25 @@ export class ReviewerController {
     const reviewerId = user._id.toString();
 
     // Verify the review belongs to this reviewer
-    const review = PeerReviewService.getReviewById(reviewId);
+    const review = await this.peerReviewRepo.getReviewById(reviewId);
     if (!review || review.reviewerId.toString() !== reviewerId) {
       throw new Error('Review not found or access denied');
     }
 
     // Submit the review
-    const success = PeerReviewService.submitReview(
+    await this.peerReviewRepo.submitReview(
       reviewId,
       body.score,
       body.comments,
       body.similarity
     );
 
-    if (!success) {
-      throw new Error('Failed to submit review');
-    }
-
     // Update assignment status
-    const assignment = ReviewerAssignmentService.getAssignmentsForAnswer(review.answerId.toString())
-      .find(a => a.reviewerId === reviewerId);
+    const assignment = (await this.reviewerAssignmentRepo.getAssignmentsForAnswer(review.answerId.toString()))
+      .find(a => a.reviewerId.toString() === reviewerId);
 
     if (assignment) {
-      ReviewerAssignmentService.updateAssignmentStatus(assignment._id!.toString(), 'completed');
+      await this.reviewerAssignmentRepo.updateAssignmentStatus(assignment._id!.toString(), 'completed');
     }
 
     return { success: true, message: 'Review submitted successfully' };
@@ -128,19 +110,15 @@ export class ReviewerController {
   ) {
     const reviewerId = user._id.toString();
 
-    const assignment = ReviewerAssignmentService.getAssignmentById(assignmentId);
+    const assignment = await this.reviewerAssignmentRepo.getAssignmentById(assignmentId);
     if (!assignment || assignment.reviewerId.toString() !== reviewerId) {
       throw new Error('Assignment not found or access denied');
     }
 
-    const success = ReviewerAssignmentService.updateAssignmentStatus(
+    await this.reviewerAssignmentRepo.updateAssignmentStatus(
       assignmentId,
       body.status
     );
-
-    if (!success) {
-      throw new Error('Failed to update assignment status');
-    }
 
     return { success: true, message: `Assignment ${body.status}` };
   }
@@ -153,8 +131,8 @@ export class ReviewerController {
   async getMyReviewStats(@CurrentUser() user: IUser) {
     const reviewerId = user._id.toString();
 
-    const assignments = ReviewerAssignmentService.getAssignmentsForReviewer(reviewerId);
-    const pendingReviews = PeerReviewService.getPendingReviewsForReviewer(reviewerId);
+    const assignments = await this.reviewerAssignmentRepo.getAssignmentsForReviewer(reviewerId);
+    const pendingReviews = await this.peerReviewRepo.getPendingReviewsForReviewer(reviewerId);
 
     const stats = {
       totalAssignments: assignments.length,

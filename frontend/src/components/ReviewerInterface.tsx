@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './atoms/card';
 import { Button } from './atoms/button';
 import { Textarea } from './atoms/textarea';
@@ -7,106 +7,79 @@ import { RadioGroup, RadioGroupItem } from './atoms/radio-group';
 import { Badge } from './atoms/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './atoms/tabs';
 import { CheckCircle, Clock, AlertCircle, Star, MessageSquare } from 'lucide-react';
-
-// Mock data for reviewer assignments (replace with API calls)
-const mockAssignments = [
-  {
-    id: 'assignment_1',
-    answerId: 'answer_123',
-    question: 'What is the capital of France?',
-    answer: 'Paris is the capital and most populous city of France.',
-    author: 'John Doe',
-    assignedAt: new Date('2024-01-15'),
-    dueDate: new Date('2024-01-22'),
-    status: 'pending',
-    priority: 'high',
-  },
-  {
-    id: 'assignment_2',
-    answerId: 'answer_456',
-    question: 'Explain quantum computing',
-    answer: 'Quantum computing uses quantum mechanics principles...',
-    author: 'Jane Smith',
-    assignedAt: new Date('2024-01-14'),
-    dueDate: new Date('2024-01-21'),
-    status: 'accepted',
-    priority: 'medium',
-  },
-];
-
-const mockStats = {
-  totalAssignments: 15,
-  pendingReviews: 3,
-  completedReviews: 12,
-  acceptedAssignments: 13,
-  declinedAssignments: 2,
-};
+import {
+  useGetMyReviewAssignments,
+  useGetMyReviewStats,
+  useSubmitReview,
+  useUpdateAssignmentStatus,
+  type ReviewAssignment
+} from '@/hooks/api/peer-review';
+import toast from 'react-hot-toast';
 
 export const ReviewerInterface = () => {
-  const [assignments, setAssignments] = useState(mockAssignments);
-  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<ReviewAssignment | null>(null);
   const [reviewForm, setReviewForm] = useState({
     score: '',
     comments: '',
     similarity: '',
   });
-  const [stats, setStats] = useState(mockStats);
 
-  useEffect(() => {
-    // TODO: Fetch reviewer assignments from API
-    // const fetchAssignments = async () => {
-    //   const response = await fetch('/api/reviews/my-assignments');
-    //   const data = await response.json();
-    //   setAssignments(data);
-    // };
-    // fetchAssignments();
-  }, []);
+  // API hooks
+  const { data: assignmentsData, isLoading: assignmentsLoading } = useGetMyReviewAssignments();
+  const { data: statsData, isLoading: statsLoading } = useGetMyReviewStats();
+  const submitReviewMutation = useSubmitReview();
+  const updateAssignmentStatusMutation = useUpdateAssignmentStatus();
+
+  const assignments = assignmentsData || [];
+  const stats = statsData || {
+    totalAssignments: 0,
+    pendingReviews: 0,
+    completedReviews: 0,
+    acceptedAssignments: 0,
+    declinedAssignments: 0,
+  };
 
   const handleAcceptAssignment = async (assignmentId: string) => {
-    // TODO: Call API to accept assignment
-    setAssignments(prev =>
-      prev.map(assignment =>
-        assignment.id === assignmentId
-          ? { ...assignment, status: 'accepted' }
-          : assignment
-      )
-    );
+    try {
+      await updateAssignmentStatusMutation.mutateAsync({
+        assignmentId,
+        status: 'accepted'
+      });
+      toast.success('Assignment accepted successfully');
+    } catch (error) {
+      toast.error('Failed to accept assignment');
+    }
   };
 
   const handleDeclineAssignment = async (assignmentId: string) => {
-    // TODO: Call API to decline assignment
-    setAssignments(prev =>
-      prev.map(assignment =>
-        assignment.id === assignmentId
-          ? { ...assignment, status: 'declined' }
-          : assignment
-      )
-    );
+    try {
+      await updateAssignmentStatusMutation.mutateAsync({
+        assignmentId,
+        status: 'declined'
+      });
+      toast.success('Assignment declined');
+    } catch (error) {
+      toast.error('Failed to decline assignment');
+    }
   };
 
   const handleSubmitReview = async () => {
-    if (!selectedAssignment) return;
+    if (!selectedAssignment?.review) return;
 
-    // TODO: Call API to submit review
-    console.log('Submitting review:', {
-      assignmentId: selectedAssignment.id,
-      score: reviewForm.score,
-      comments: reviewForm.comments,
-      similarity: reviewForm.similarity,
-    });
+    try {
+      await submitReviewMutation.mutateAsync({
+        reviewId: selectedAssignment.review._id,
+        score: parseInt(reviewForm.score),
+        comments: reviewForm.comments || undefined,
+        similarity: reviewForm.similarity ? parseFloat(reviewForm.similarity) : undefined,
+      });
 
-    // Update assignment status
-    setAssignments(prev =>
-      prev.map(assignment =>
-        assignment.id === selectedAssignment.id
-          ? { ...assignment, status: 'completed' }
-          : assignment
-      )
-    );
-
-    // Reset form
-    setReviewForm({ score: '', comments: '', similarity: '' });
-    setSelectedAssignment(null);
+      toast.success('Review submitted successfully!');
+      setReviewForm({ score: '', comments: '', similarity: '' });
+      setSelectedAssignment(null);
+    } catch (error) {
+      toast.error('Failed to submit review');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -151,63 +124,71 @@ export const ReviewerInterface = () => {
         </TabsList>
 
         <TabsContent value="assignments" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Assignments List */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Review Assignments</h2>
-              {assignments.map((assignment) => (
-                <Card
-                  key={assignment.id}
-                  className={`cursor-pointer transition-colors ${
-                    selectedAssignment?.id === assignment.id ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  onClick={() => setSelectedAssignment(assignment)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg mb-2 line-clamp-2">
-                          {assignment.question}
-                        </CardTitle>
-                        <div className="flex gap-2 mb-2">
-                          {getStatusBadge(assignment.status)}
-                          {getPriorityBadge(assignment.priority)}
+          {assignmentsLoading ? (
+            <div className="text-center py-8">Loading assignments...</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Assignments List */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Review Assignments</h2>
+                {assignments.map((assignmentData) => (
+                  <Card
+                    key={assignmentData.assignment._id}
+                    className={`cursor-pointer transition-colors ${
+                      selectedAssignment?.assignment._id === assignmentData.assignment._id ? 'ring-2 ring-blue-500' : ''
+                    }`}
+                    onClick={() => setSelectedAssignment(assignmentData)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg mb-2 line-clamp-2">
+                            Assignment #{assignmentData.assignment._id.slice(-6)}
+                          </CardTitle>
+                          <div className="flex gap-2 mb-2">
+                            {getStatusBadge(assignmentData.assignment.status)}
+                            {getPriorityBadge(assignmentData.assignment.priority)}
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            Assigned {new Date(assignmentData.assignment.assignedAt).toLocaleDateString()}
+                            {assignmentData.assignment.dueDate && ` • Due ${new Date(assignmentData.assignment.dueDate).toLocaleDateString()}`}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          By {assignment.author} • Due {assignment.dueDate.toLocaleDateString()}
-                        </p>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm line-clamp-3 mb-3">{assignment.answer}</p>
-                    {assignment.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAcceptAssignment(assignment.id);
-                          }}
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeclineAssignment(assignment.id);
-                          }}
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm line-clamp-3 mb-3">
+                        {assignmentData.review ? `Review Status: ${assignmentData.review.status}` : 'No review data available'}
+                      </p>
+                      {assignmentData.assignment.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAcceptAssignment(assignmentData.assignment._id);
+                            }}
+                            disabled={updateAssignmentStatusMutation.isPending}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeclineAssignment(assignmentData.assignment._id);
+                            }}
+                            disabled={updateAssignmentStatusMutation.isPending}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
             {/* Review Form */}
             <div className="space-y-4">
@@ -217,7 +198,7 @@ export const ReviewerInterface = () => {
                   <CardHeader>
                     <CardTitle className="text-lg">Review Assignment</CardTitle>
                     <p className="text-sm text-gray-600">
-                      {selectedAssignment.question}
+                      Assignment #{selectedAssignment.assignment._id.slice(-6)}
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -267,11 +248,11 @@ export const ReviewerInterface = () => {
 
                     <Button
                       onClick={handleSubmitReview}
-                      disabled={!reviewForm.score}
+                      disabled={!reviewForm.score || submitReviewMutation.isPending}
                       className="w-full"
                     >
                       <MessageSquare className="w-4 h-4 mr-2" />
-                      Submit Review
+                      {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -285,48 +266,53 @@ export const ReviewerInterface = () => {
               )}
             </div>
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="stats" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Assignments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalAssignments}</div>
-              </CardContent>
-            </Card>
+          {statsLoading ? (
+            <div className="text-center py-8">Loading statistics...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Assignments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalAssignments}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{stats.pendingReviews}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pendingReviews}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Completed Reviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats.completedReviews}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Completed Reviews</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{stats.completedReviews}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Acceptance Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {Math.round((stats.acceptedAssignments / stats.totalAssignments) * 100)}%
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Acceptance Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {stats.totalAssignments > 0 ? Math.round((stats.acceptedAssignments / stats.totalAssignments) * 100) : 0}%
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

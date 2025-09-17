@@ -1,5 +1,7 @@
 import {IAnswerRepository} from '#root/shared/database/interfaces/IAnswerRepository.js';
 import {IQuestionRepository} from '#root/shared/database/interfaces/IQuestionRepository.js';
+import {IPeerReviewRepository} from '#root/shared/database/interfaces/IPeerReviewRepository.js';
+import {IReviewerAssignmentRepository} from '#root/shared/database/interfaces/IReviewerAssignmentRepository.js';
 import {BaseService, MongoDatabase} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
@@ -21,6 +23,12 @@ export class AnswerService extends BaseService {
 
     @inject(GLOBAL_TYPES.QuestionRepository)
     private readonly questionRepo: IQuestionRepository,
+
+    @inject(GLOBAL_TYPES.PeerReviewRepository)
+    private readonly peerReviewRepo: IPeerReviewRepository,
+
+    @inject(GLOBAL_TYPES.ReviewerAssignmentRepository)
+    private readonly reviewerAssignmentRepo: IReviewerAssignmentRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
@@ -139,35 +147,96 @@ export class AnswerService extends BaseService {
     });
   }
 
-  async deleteAnswer(
-    questionId: string,
-    answerId: string,
-  ): Promise<{deletedCount: number}> {
+  async submitReview(
+    reviewerId: string,
+    reviewId: string,
+    score: number,
+    comments?: string,
+    similarity?: number,
+  ): Promise<{ submitted: boolean; triggersNextRound: boolean }> {
     return this._withTransaction(async (session: ClientSession) => {
-      const answer = await this.answerRepo.getById(answerId);
-      if (!answer) {
-        throw new BadRequestError(`Answer with ID ${answerId} not found`);
-      }
-      const question = await this.questionRepo.getById(questionId);
-
-      if (!question) {
-        throw new BadRequestError(`Question with ID ${questionId} not found`);
-      }
-      const updatedAnswerCount = question.totalAnwersCount - 1;
-
-      const isFinalAnswer = answer.isFinalAnswer;
-
-      await this.questionRepo.updateQuestion(
-        questionId,
-        {
-          totalAnwersCount: updatedAnswerCount,
-          status: isFinalAnswer ? 'open' : 'closed',
-        },
-        session,
+      // Submit the review using the repository
+      await this.peerReviewRepo.submitReview(
+        reviewId,
+        score,
+        comments,
+        similarity,
+        session
       );
 
-      return this.answerRepo.deleteAnswer(answerId, session);
+      // Update assignment status to completed
+      const review = await this.peerReviewRepo.getReviewById(reviewId, session);
+      if (review) {
+        const assignments = await this.reviewerAssignmentRepo.getAssignmentsForAnswer(review.answerId.toString(), session);
+        const assignment = assignments.find(a => a.reviewerId.toString() === reviewerId);
+        if (assignment) {
+          await this.reviewerAssignmentRepo.updateAssignmentStatus(assignment._id!.toString(), 'completed', session);
+        }
+      }
+
+      // Check if we should trigger the next round of review
+      const triggersNextRound = await this.checkAndTriggerNextReviewRound(reviewId, session);
+
+      return { submitted: true, triggersNextRound };
     });
+  }
+
+  private async checkAndTriggerNextReviewRound(reviewId: string, session: ClientSession): Promise<boolean> {
+    const review = await this.peerReviewRepo.getReviewById(reviewId, session);
+    if (!review) return false;
+
+    const answerId = review.answerId.toString();
+
+    // Get review stats for this answer
+    const reviewStats = await this.peerReviewRepo.getReviewStatsForAnswer(answerId, session);
+
+    // Check if we have enough reviews and if the threshold is met
+    if (reviewStats.completedReviews >= 2 && reviewStats.thresholdReached) {
+      // Trigger next round - assign new reviewers
+      await this.assignNextRoundReviewers(answerId, session);
+      return true;
+    }
+
+    return false;
+  }
+
+  private async assignNextRoundReviewers(answerId: string, session: ClientSession): Promise<void> {
+    try {
+      // Get existing assignments to avoid assigning to the same reviewers
+      const existingAssignments = await this.reviewerAssignmentRepo.getAssignmentsForAnswer(answerId, session);
+      const existingReviewerIds = existingAssignments.map(a => a.reviewerId.toString());
+
+      // Assign reviewers excluding those who already reviewed
+      const assignments = await ReviewerAssignmentService.assignReviewersToAnswer(
+        answerId,
+        'medium',
+        undefined, // We'll need to modify the service to exclude certain reviewers
+        existingReviewerIds
+      );
+
+      // Create corresponding review records for each assignment
+      for (const assignment of assignments) {
+        const review = {
+          answerId,
+          reviewerId: assignment.reviewerId,
+          status: 'assigned' as const,
+          assignedAt: assignment.assignedAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        // Save review to database using repository
+        await this.peerReviewRepo.createReview(review, session);
+
+        // Save assignment to database using repository
+        await this.reviewerAssignmentRepo.createAssignment(assignment, session);
+      }
+
+      console.log(`Assigned next round reviewers to answer ${answerId}`);
+    } catch (error) {
+      console.error('Error assigning next round reviewers:', error);
+      // Continue execution even if next round assignment fails
+    }
   }
 
   // Assign reviewers to an answer
@@ -193,8 +262,11 @@ export class AnswerService extends BaseService {
           updatedAt: new Date(),
         };
 
-        // TODO: Save review to database
-        // await PeerReviewService.createReview(review);
+        // Save review to database using repository
+        await this.peerReviewRepo.createReview(review, session);
+
+        // Save assignment to database using repository
+        await this.reviewerAssignmentRepo.createAssignment(assignment, session);
       }
 
       console.log(`Assigned ${assignments.length} reviewers to answer ${answerId}`);

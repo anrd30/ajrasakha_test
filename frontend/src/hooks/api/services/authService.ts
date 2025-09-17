@@ -7,11 +7,13 @@ export class AuthService {
 
   async loginWithGoogle(firebaseLoginRes: ExtendedUserCredential) {
     try {
+      const idToken = await firebaseLoginRes.user.getIdToken();
+
       const backendUrl = `${this._baseUrl}/signup/google/`;
       const res = await fetch(backendUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${firebaseLoginRes._tokenResponse?.idToken}`,
+          Authorization: `Bearer ${idToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -27,6 +29,9 @@ export class AuthService {
           `Login failed: ${res.status} ${res.statusText} - ${errorText}`
         );
       }
+
+      // Return the response data
+      return await res.json();
     } catch (error) {
       console.error("Login with google failed!", error);
       throw error;

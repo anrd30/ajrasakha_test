@@ -14,7 +14,7 @@ export const appConfig = {
   isProduction: env('NODE_ENV') === 'production',
   isStaging: env('NODE_ENV') === 'staging',
   isDevelopment: env('NODE_ENV') === 'development',
-  port: Number(env('PORT')) || Number(env('APP_PORT')) || 8080,
+  port: Number(env('PORT')) || Number(env('APP_PORT')) || 4000,
   url: env('APP_URL'),
   origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:5173'],
   module: env('APP_MODULE') || 'all',

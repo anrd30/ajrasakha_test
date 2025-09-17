@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Tabs,
   TabsContent,
@@ -12,11 +13,19 @@ import {
 } from "@/components/atoms/hover-card";
 import { UserProfileActions } from "@/components/atoms/user-profile-actions";
 import { ThemeToggleCompact } from "./atoms/ThemeToggle";
+import { ReviewerInterface } from "./ReviewerInterface";
+import { ReviewFeed } from "./ReviewFeed";
+import VoiceRecorderCard from "./voice-recorder-card";
 import { QAInterface } from "./QA-interface";
 import { FullSubmissionHistory } from "./submission-history";
-import VoiceRecorderCard from "./voice-recorder-card";
 
 export const PlaygroundPage = () => {
+  const [activeTab, setActiveTab] = React.useState("upload");
+
+  const handleNavigateToReviews = () => {
+    setActiveTab("reviews");
+  };
+
   return (
     <>
       <div className=" h-full flex-col md:flex w-full ">
@@ -34,11 +43,11 @@ export const PlaygroundPage = () => {
         </div>
 
         <Separator />
-        <Tabs defaultValue="upload" className="">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="">
           <div className="container h-full py-6 ">
             <div className="grid gap-6 mb-5 ">
               <div className="flex">
-                <TabsList className="grid  grid-cols-3 gap-1  bg-transparent/60 ">
+                <TabsList className="grid  grid-cols-4 gap-1  bg-transparent/60 ">
                   <TabsTrigger
                     value="upload"
                     className="px-4 rounded-lg  transition-all duration-150 font-medium"
@@ -89,10 +98,27 @@ export const PlaygroundPage = () => {
                       </HoverCardContent>
                     </HoverCard>
                   </TabsTrigger>
+
+                  <TabsTrigger
+                    value="reviews"
+                    className="px-4 py-2 rounded-lg transition-all duration-150 font-medium"
+                  >
+                    <HoverCard openDelay={150}>
+                      <HoverCardTrigger asChild>
+                        <span>Reviews</span>
+                      </HoverCardTrigger>
+                      <HoverCardContent
+                        className="w-[200px] text-sm"
+                        side="bottom"
+                      >
+                        Review answers from other experts
+                      </HoverCardContent>
+                    </HoverCard>
+                  </TabsTrigger>
                 </TabsList>
               </div>
             </div>
-            <div className="grid h-full items-stretch gap-6 md:grid-cols-[1fr_200px] ">
+            <div className="grid h-full items-stretch gap-6 md:grid-cols-[1fr_300px] ">
               <div className="md:order-1 w-screen">
                 <TabsContent
                   value="upload"
@@ -124,6 +150,19 @@ export const PlaygroundPage = () => {
                 >
                   <FullSubmissionHistory />
                 </TabsContent>
+                <TabsContent
+                  value="reviews"
+                  className="mt-0 border-0 p-0 max-w-[95%]"
+                >
+                  <ReviewerInterface />
+                </TabsContent>
+              </div>
+
+              {/* Sidebar with ReviewFeed */}
+              <div className="md:order-2 hidden md:block">
+                <div className="sticky top-6">
+                  <ReviewFeed onNavigateToReviews={handleNavigateToReviews} />
+                </div>
               </div>
             </div>
           </div>

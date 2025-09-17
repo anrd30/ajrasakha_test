@@ -6,10 +6,7 @@ import {
   Eye,
   RefreshCw,
   RotateCcw,
-  ArrowDownWideNarrow,
-  ArrowUpWideNarrow,
   MessageCircle,
-  MessageSquarePlus,
   Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./atoms/card";
@@ -378,7 +375,8 @@ export const QAInterface = () => {
                         <RotateCcw className="h-4 w-4" />
                       </Button>
                     {/* Simple Review Status */}
-                    {selectedQuestionData?.currentAnswers?.length > 0 && (
+                    {selectedQuestionData?.currentAnswers &&
+                    selectedQuestionData.currentAnswers.length > 0 && (
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                         <Eye className="w-4 h-4" />
                         <span>
@@ -405,11 +403,11 @@ export const QAInterface = () => {
                           <DialogTitle>Other Responses</DialogTitle>
                         </AlertDialogHeader>
                         <div className="mt-4">
-                          {selectedQuestionData.currentAnswers &&
+                          {selectedQuestionData?.currentAnswers &&
                           selectedQuestionData.currentAnswers.length > 0 ? (
                             <div className="space-y-6">
                               {selectedQuestionData.currentAnswers
-                                ?.slice()
+                                .slice()
                                 .sort(
                                   (a, b) =>
                                     (b.isFinalAnswer ? 1 : 0) -
